@@ -1,7 +1,9 @@
 import asyncio
+import sys
 from typing import Optional
 
-from PySide6.QtCore import Signal, QObject, Qt, QThread
+import sounddevice as sd
+from PySide6.QtCore import Signal, Qt, QThread
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QMainWindow,
@@ -14,8 +16,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QSlider,
     QProgressBar,
-    QListWidget,
-    QListWidgetItem,
     QMessageBox,
     QFileDialog,
     QCheckBox,
@@ -32,7 +32,6 @@ from src.utils.device_utils import list_virtual_output_devices, list_output_devi
 from src.core.tts_engine import create_tts_engine, BaseTTSEngine
 from src.core.audio_router import AudioRouter
 from src.core.cache_manager import CacheManager
-from src.core.queue_manager import QueueManager, QueueState
 
 logger = SpeechLogger()
 
@@ -199,25 +198,6 @@ QProgressBar::chunk {
     background-color: #cba6f7;
     border-radius: 3px;
 }
-QListWidget {
-    background-color: #181825;
-    color: #cdd6f4;
-    border: 1px solid #45475a;
-    border-radius: 6px;
-    padding: 4px;
-    font-size: 12px;
-    outline: none;
-}
-QListWidget::item {
-    padding: 4px 8px;
-    border-radius: 3px;
-}
-QListWidget::item:selected {
-    background-color: #45475a;
-}
-QListWidget::item:alternate {
-    background-color: #1e1e2e;
-}
 QScrollBar:vertical {
     background: #181825;
     width: 8px;
@@ -257,25 +237,70 @@ QFrame#separator {
 """
 
 
-class AsyncWorker(QObject):
-    finished = Signal()
-    error = Signal(str)
+# ---------------------------------------------------------------------------
+#  Worker thread – QThread subclass (simplest, most reliable pattern)
+# ---------------------------------------------------------------------------
+class SpeakThread(QThread):
+    status_update = Signal(str)
+    speak_error = Signal(str)
 
-    def __init__(self, coro):
+    def __init__(self, tts_engine, audio_router, cache, text, voice, rate, virtual_device, speaker_device):
         super().__init__()
-        self._coro = coro
+        self._tts_engine = tts_engine
+        self._audio_router = audio_router
+        self._cache = cache
+        self._text = text
+        self._voice = voice
+        self._rate = rate
+        self._virtual_device = virtual_device
+        self._speaker_device = speaker_device
 
     def run(self):
         try:
-            loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(loop)
-            loop.run_until_complete(self._coro)
+            # --- Step 1: Synthesize ---
+            print("[SpeakThread] Synthesizing...", flush=True)
+            self.status_update.emit("Synthesizing...")
+
+            cached = self._cache.get(self._text, self._voice, self._rate, 0.0)
+            if cached:
+                print("[SpeakThread] Using cached audio", flush=True)
+                wav_data = cached["audio_data"]
+            else:
+                print("[SpeakThread] Calling TTS engine...", flush=True)
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                try:
+                    result = loop.run_until_complete(
+                        self._tts_engine.synthesize(self._text, self._voice, self._rate, 0.0)
+                    )
+                finally:
+                    loop.close()
+                wav_data = result.audio_data
+                print(f"[SpeakThread] Got {len(wav_data)} bytes of audio", flush=True)
+                self._cache.put(
+                    self._text, self._voice, self._rate, 0.0, wav_data, result.sample_rate
+                )
+
+            # --- Step 2: Play audio ---
+            print(
+                f"[SpeakThread] Playing to virtual={self._virtual_device}, "
+                f"speaker={self._speaker_device}",
+                flush=True,
+            )
+            self.status_update.emit("Speaking...")
+            self._audio_router.play(wav_data, self._virtual_device, self._speaker_device)
+            print("[SpeakThread] Playback finished", flush=True)
+
         except Exception as e:
-            self.error.emit(str(e))
-        finally:
-            self.finished.emit()
+            print(f"[SpeakThread] ERROR: {e}", flush=True)
+            import traceback
+            traceback.print_exc()
+            self.speak_error.emit(str(e))
 
 
+# ---------------------------------------------------------------------------
+#  Settings dialog
+# ---------------------------------------------------------------------------
 class SettingsDialog(QDialog):
     def __init__(self, config: ConfigManager, parent=None):
         super().__init__(parent)
@@ -387,15 +412,17 @@ class SettingsDialog(QDialog):
         self.accept()
 
 
+# ---------------------------------------------------------------------------
+#  Main window
+# ---------------------------------------------------------------------------
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self._config = ConfigManager()
         self._cache = CacheManager()
         self._audio_router = AudioRouter()
-        self._queue_manager = QueueManager()
         self._tts_engine: Optional[BaseTTSEngine] = None
-        self._worker_thread = None
+        self._worker: Optional[SpeakThread] = None
         self._init_engine()
         self._setup_ui()
         self._setup_shortcuts()
@@ -411,9 +438,11 @@ class MainWindow(QMainWindow):
             logger.error(f"Failed to init TTS engine: {e}")
             self._tts_engine = create_tts_engine("google_translate")
 
+    # -- UI ----------------------------------------------------------------
+
     def _setup_ui(self):
         self.setWindowTitle("VoiceInjector")
-        self.setMinimumSize(520, 640)
+        self.setMinimumSize(520, 500)
         self.setStyleSheet(STYLE)
 
         central = QWidget()
@@ -433,16 +462,15 @@ class MainWindow(QMainWindow):
         subtitle.setStyleSheet("color: #6c7086; font-size: 11px; padding-bottom: 4px;")
         main_layout.addWidget(subtitle)
 
-        # Separator
         sep1 = QFrame()
         sep1.setObjectName("separator")
         sep1.setFrameShape(QFrame.HLine)
         main_layout.addWidget(sep1)
 
-        # Device row
+        # Virtual mic device
         device_row = QHBoxLayout()
         device_row.setSpacing(8)
-        device_label = QLabel("Microphone")
+        device_label = QLabel("Virtual Mic")
         device_label.setStyleSheet("color: #a6adc8; font-size: 11px; font-weight: bold;")
         self._device_combo = QComboBox()
         self._device_combo.setMinimumWidth(200)
@@ -454,7 +482,7 @@ class MainWindow(QMainWindow):
         device_row.addWidget(self._refresh_btn)
         main_layout.addLayout(device_row)
 
-        # Controls row
+        # Voice + Speed
         controls = QHBoxLayout()
         controls.setSpacing(12)
 
@@ -492,7 +520,7 @@ class MainWindow(QMainWindow):
         controls.addLayout(speed_col, 1)
         main_layout.addLayout(controls)
 
-        # Engine row
+        # Engine
         engine_row = QHBoxLayout()
         engine_row.setSpacing(8)
         engine_label = QLabel("Engine")
@@ -510,7 +538,6 @@ class MainWindow(QMainWindow):
         engine_row.addWidget(self._settings_btn)
         main_layout.addLayout(engine_row)
 
-        # Separator
         sep2 = QFrame()
         sep2.setObjectName("separator")
         sep2.setFrameShape(QFrame.HLine)
@@ -521,31 +548,25 @@ class MainWindow(QMainWindow):
         text_label.setStyleSheet("color: #a6adc8; font-size: 11px; font-weight: bold;")
         main_layout.addWidget(text_label)
         self._text_edit = QTextEdit()
-        self._text_edit.setPlaceholderText(
-            "Paste your English questions here...\n" "One question per line for batch processing."
-        )
+        self._text_edit.setPlaceholderText("Type or paste your English text here...")
         self._text_edit.setMinimumHeight(140)
         self._text_edit.setAcceptRichText(False)
         main_layout.addWidget(self._text_edit)
 
-        # Action buttons
+        # Buttons
         btn_row = QHBoxLayout()
         btn_row.setSpacing(8)
-        self._speak_btn = QPushButton("Speak All")
+        self._speak_btn = QPushButton("Speak")
         self._speak_btn.setObjectName("speakBtn")
         self._speak_btn.setMinimumHeight(34)
         self._stop_btn = QPushButton("Stop")
         self._stop_btn.setObjectName("stopBtn")
         self._stop_btn.setMinimumHeight(34)
         self._stop_btn.setEnabled(False)
-        self._skip_btn = QPushButton("Skip")
-        self._skip_btn.setMinimumHeight(34)
-        self._skip_btn.setEnabled(False)
         self._clear_btn = QPushButton("Clear")
         self._clear_btn.setMinimumHeight(34)
         btn_row.addWidget(self._speak_btn)
         btn_row.addWidget(self._stop_btn)
-        btn_row.addWidget(self._skip_btn)
         btn_row.addWidget(self._clear_btn)
         main_layout.addLayout(btn_row)
 
@@ -555,35 +576,25 @@ class MainWindow(QMainWindow):
         self._status_label.setAlignment(Qt.AlignCenter)
         main_layout.addWidget(self._status_label)
 
-        # Progress
+        # Progress (indeterminate)
         self._progress = QProgressBar()
         self._progress.setFixedHeight(6)
+        self._progress.setRange(0, 0)
         self._progress.setVisible(False)
         main_layout.addWidget(self._progress)
 
-        # Queue
-        queue_header = QHBoxLayout()
-        queue_label = QLabel("Queue")
-        queue_label.setStyleSheet("color: #a6adc8; font-size: 11px; font-weight: bold;")
-        self._queue_count = QLabel("0")
-        self._queue_count.setStyleSheet("color: #585b70; font-size: 11px;")
-        queue_header.addWidget(queue_label)
-        queue_header.addStretch()
-        queue_header.addWidget(self._queue_count)
-        main_layout.addLayout(queue_header)
-
-        self._queue_list = QListWidget()
-        self._queue_list.setMaximumHeight(110)
-        main_layout.addWidget(self._queue_list)
-
-        # Status bar
+        main_layout.addStretch()
         self.statusBar().showMessage("Ready")
 
+    # -- Shortcuts ---------------------------------------------------------
+
     def _setup_shortcuts(self):
-        QShortcut(QKeySequence("Return"), self, self._on_speak).setContext(Qt.ApplicationShortcut)
+        QShortcut(QKeySequence("Ctrl+Return"), self, self._on_speak).setContext(
+            Qt.ApplicationShortcut
+        )
         QShortcut(QKeySequence("Escape"), self, self._on_stop).setContext(Qt.ApplicationShortcut)
-        ctrl = QShortcut(QKeySequence("Ctrl+Return"), self, self._on_speak)
-        ctrl.setContext(Qt.ApplicationShortcut)
+
+    # -- Settings ----------------------------------------------------------
 
     def _load_settings(self):
         cfg = self._config.config
@@ -604,19 +615,18 @@ class MainWindow(QMainWindow):
         if cfg.window_width > 0 and cfg.window_height > 0:
             self.resize(cfg.window_width, cfg.window_height)
 
+    # -- Signals -----------------------------------------------------------
+
     def _connect_signals(self):
         self._speak_btn.clicked.connect(self._on_speak)
         self._stop_btn.clicked.connect(self._on_stop)
-        self._skip_btn.clicked.connect(self._on_skip)
         self._clear_btn.clicked.connect(self._on_clear)
         self._refresh_btn.clicked.connect(self._refresh_devices)
         self._settings_btn.clicked.connect(self._on_settings)
         self._speed_slider.valueChanged.connect(self._on_speed_changed)
         self._engine_combo.currentIndexChanged.connect(self._on_engine_changed)
-        self._audio_router.set_on_finished(self._on_playback_finished)
-        self._queue_manager.set_on_state_change(self._on_queue_state_change)
-        self._queue_manager.set_on_item_change(self._on_queue_item_change)
-        self._queue_manager.set_on_finished(self._on_queue_finished)
+
+    # -- Device helpers ----------------------------------------------------
 
     def _refresh_devices(self):
         self._device_combo.clear()
@@ -629,11 +639,18 @@ class MainWindow(QMainWindow):
         if self._device_combo.count() == 0:
             self._device_combo.addItem("No output devices found", -1)
 
+    @staticmethod
+    def _get_default_speaker() -> Optional[int]:
+        try:
+            idx = sd.default.device[1]
+            return int(idx) if idx is not None and idx >= 0 else None
+        except Exception:
+            return None
+
+    # -- Simple callbacks --------------------------------------------------
+
     def _on_speed_changed(self, value):
-        if isinstance(value, int):
-            rate = value / 100.0
-        else:
-            rate = value
+        rate = value / 100.0 if isinstance(value, int) else value
         self._speed_label.setText(f"{rate:.1f}x")
 
     def _on_engine_changed(self, idx):
@@ -654,128 +671,89 @@ class MainWindow(QMainWindow):
             self._on_engine_changed(self._engine_combo.currentIndex())
             self.statusBar().showMessage("Settings saved", 3000)
 
+    # -- Speak / Stop / Clear ----------------------------------------------
+
     def _on_speak(self):
         text = self._text_edit.toPlainText().strip()
         if not text:
             self.statusBar().showMessage("No text to speak", 3000)
             return
-        lines = [line.strip() for line in text.split("\n") if line.strip()]
-        self._queue_manager.clear()
-        self._queue_manager.add_items(lines)
-        self._update_queue_display()
-        self._start_queue()
+        if self._worker and self._worker.isRunning():
+            return
+
+        # Read all UI values here (main thread – safe)
+        voice = self._voice_combo.currentText()
+        rate = self._speed_slider.value() / 100.0
+        virtual_device = self._device_combo.currentData()
+        if virtual_device is not None and virtual_device < 0:
+            virtual_device = None
+        speaker_device = self._get_default_speaker()
+
+        print(f"[MainWindow] Speak clicked: voice={voice}, rate={rate}, "
+              f"virtual={virtual_device}, speaker={speaker_device}", flush=True)
+
+        # UI → speaking state
+        self._speak_btn.setEnabled(False)
+        self._stop_btn.setEnabled(True)
+        self._progress.setVisible(True)
+        self._set_status("Starting...", active=True)
+
+        # Start worker thread
+        self._worker = SpeakThread(
+            self._tts_engine,
+            self._audio_router,
+            self._cache,
+            text, voice, rate,
+            virtual_device,
+            speaker_device,
+        )
+        self._worker.status_update.connect(lambda s: self._set_status(s, active=True))
+        self._worker.speak_error.connect(self._on_speak_error)
+        self._worker.finished.connect(self._on_speak_finished)
+        self._worker.start()
 
     def _on_stop(self):
         self._audio_router.stop()
-        self._queue_manager.clear()
-        if self._worker_thread and self._worker_thread.isRunning():
-            self._worker_thread.quit()
-            self._worker_thread.wait(2000)
-        self._update_queue_display()
-        self._set_idle_state()
-
-    def _on_skip(self):
-        self._queue_manager.skip_current()
-        self._audio_router.stop()
+        if self._worker and self._worker.isRunning():
+            self._worker.quit()
+            self._worker.wait(3000)
+        self._set_idle()
 
     def _on_clear(self):
         self._text_edit.clear()
-        self._queue_manager.clear()
-        self._update_queue_display()
 
-    def _start_queue(self):
-        self._speak_btn.setEnabled(False)
-        self._stop_btn.setEnabled(True)
-        self._skip_btn.setEnabled(True)
-        self._progress.setVisible(True)
-        self._status_label.setText("Speaking...")
-        self._status_label.setProperty("active", True)
+    # -- Worker callbacks (run on main thread via signal) -------------------
+
+    def _on_speak_finished(self):
+        print("[MainWindow] Speak finished", flush=True)
+        self._set_idle()
+        self._set_status("Done ✓", active=True)
+        self.statusBar().showMessage("Done", 3000)
+
+    def _on_speak_error(self, msg: str):
+        print(f"[MainWindow] Speak error: {msg}", flush=True)
+        self._set_idle()
+        self._set_status(f"Error: {msg}", active=False)
+        self.statusBar().showMessage(f"Error: {msg}", 5000)
+
+    # -- Helpers -----------------------------------------------------------
+
+    def _set_status(self, text: str, active: bool = False):
+        self._status_label.setText(text)
+        self._status_label.setProperty("active", active)
         self._status_label.style().unpolish(self._status_label)
         self._status_label.style().polish(self._status_label)
 
-        worker = AsyncWorker(self._process_queue())
-        thread = QThread()
-        worker.moveToThread(thread)
-        thread.started.connect(worker.run)
-        worker.finished.connect(thread.quit)
-        worker.finished.connect(worker.deleteLater)
-        thread.finished.connect(thread.deleteLater)
-        worker.error.connect(lambda e: logger.error(f"Queue error: {e}"))
-        self._worker_thread = thread
-        thread.start()
-
-    async def _process_queue(self):
-        async def speak(text):
-            await self._do_speak(text)
-
-        await self._queue_manager.process(speak)
-
-    async def _do_speak(self, text: str):
-        voice = self._voice_combo.currentText()
-        rate = self._speed_slider.value() / 100.0
-        device_idx = self._device_combo.currentData()
-        if device_idx is None or device_idx < 0:
-            device_idx = None
-
-        cached = self._cache.get(text, voice, rate, 0.0)
-        if cached:
-            wav_data = cached["audio_data"]
-        else:
-            try:
-                result = await self._tts_engine.synthesize(text, voice, rate, 0.0)
-                wav_data = result.audio_data
-                self._cache.put(text, voice, rate, 0.0, wav_data, result.sample_rate)
-            except Exception as e:
-                logger.error(f"TTS synthesis failed: {e}")
-                self.statusBar().showMessage(f"TTS error: {e}", 5000)
-                return
-
-        try:
-            self._audio_router.play_wav_blocking(wav_data, device_idx)
-            device_name = self._device_combo.currentText()
-            logger.log_speech(text, voice, device_name, 0, self._tts_engine.name)
-        except Exception as e:
-            logger.error(f"Playback failed: {e}")
-            self.statusBar().showMessage(f"Playback error: {e}", 5000)
-
-    def _on_playback_finished(self):
-        pass
-
-    def _on_queue_state_change(self, state: QueueState):
-        pass
-
-    def _on_queue_item_change(self, index: int):
-        total = self._queue_manager.total
-        self._status_label.setText(f"Speaking {index + 1}/{total}")
-        self._progress.setMaximum(total)
-        self._progress.setValue(index + 1)
-
-    def _on_queue_finished(self):
-        self._set_idle_state()
-        self.statusBar().showMessage("Queue completed", 3000)
-
-    def _set_idle_state(self):
+    def _set_idle(self):
         self._speak_btn.setEnabled(True)
         self._stop_btn.setEnabled(False)
-        self._skip_btn.setEnabled(False)
         self._progress.setVisible(False)
-        self._status_label.setText("Idle")
-        self._status_label.setProperty("active", False)
-        self._status_label.style().unpolish(self._status_label)
-        self._status_label.style().polish(self._status_label)
-
-    def _update_queue_display(self):
-        self._queue_list.clear()
-        count = 0
-        for item in self._queue_manager.items:
-            prefix = "[skipped] " if item.skipped else ""
-            display = f"{prefix}{item.text[:55]}{'...' if len(item.text) > 55 else ''}"
-            QListWidgetItem(display, self._queue_list)
-            count += 1
-        self._queue_count.setText(str(count))
 
     def closeEvent(self, event):
         self._audio_router.stop()
+        if self._worker and self._worker.isRunning():
+            self._worker.quit()
+            self._worker.wait(2000)
         geo = self.geometry()
         self._config.update(
             window_x=geo.x(),

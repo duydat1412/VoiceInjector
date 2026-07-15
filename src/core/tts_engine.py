@@ -130,14 +130,19 @@ class GoogleTranslateTTSEngine(BaseTTSEngine):
 
 class OfflineTTSEngine(BaseTTSEngine):
     def __init__(self):
-        self._engine = pyttsx3.init()
-        all_voices = self._engine.getProperty("voices")
-        self._voices = [
-            v.name
-            for v in all_voices
-            if v.languages
-            and ("english" in v.name.lower() or v.languages[0].lower().startswith("en"))
-        ]
+        try:
+            engine = pyttsx3.init()
+            all_voices = engine.getProperty("voices")
+            self._voices = [
+                v.name
+                for v in all_voices
+                if v.languages
+                and ("english" in v.name.lower() or v.languages[0].lower().startswith("en"))
+            ]
+            engine.stop()
+            del engine
+        except Exception:
+            self._voices = []
         if not self._voices:
             self._voices = ["default"]
 
@@ -151,6 +156,18 @@ class OfflineTTSEngine(BaseTTSEngine):
     async def synthesize(
         self, text: str, voice: str = "en-US-Standard-A", rate: float = 1.0, pitch: float = 0.0
     ) -> TTSResult:
+        import sys
+
+        com_init = False
+        if sys.platform == "win32":
+            try:
+                import comtypes
+
+                comtypes.CoInitialize()
+                com_init = True
+            except Exception:
+                pass
+
         engine = pyttsx3.init()
         try:
             engine.setProperty("rate", int(engine.getProperty("rate") * rate))
@@ -167,9 +184,19 @@ class OfflineTTSEngine(BaseTTSEngine):
             return TTSResult(audio_data=data, sample_rate=22050, format="wav")
         finally:
             try:
+                engine.stop()
+            except Exception:
+                pass
+            del engine
+            try:
                 os.unlink(tmp_path)
             except Exception:
                 pass
+            if com_init:
+                try:
+                    comtypes.CoUninitialize()
+                except Exception:
+                    pass
 
 
 class GoogleCloudTTSEngine(BaseTTSEngine):

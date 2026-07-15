@@ -5,16 +5,16 @@ A desktop application that reads English text aloud **into a virtual microphone*
 ## How It Works
 
 ```
-User types/pastes text → TTS Engine → Audio → Virtual Microphone → Your Speaking App
+User types/pastes text → TTS Engine → Audio → Virtual Microphone & Speaker → Your Speaking App & You
 ```
 
-Your web-based speaking practice system simply selects the virtual mic as its audio input. The app feeds TTS audio into that virtual mic as if you were speaking.
+Your web-based speaking practice system simply selects the virtual mic as its audio input. The app feeds TTS audio into that virtual mic as if you were speaking, while also playing it back to your speakers so you can hear what is being sent.
 
 ## Features
 
 - **Multiple TTS Engines**: Google Translate (free), Google Cloud (high quality), offline pyttsx3
 - **Virtual Audio Routing**: Plays audio directly into VB-CABLE (Windows) or BlackHole (macOS)
-- **Batch Processing**: Queue multiple questions, play sequentially
+- **Dual Playback**: Plays to virtual mic and default speaker/headphones simultaneously
 - **Smart Caching**: Caches audio to avoid redundant API calls
 - **Logging**: JSONL logs of all speech events
 - **Cross-Platform**: Windows 10/11 and macOS 12+ (Intel & Apple Silicon)
@@ -81,10 +81,10 @@ The executable will be in the `dist/` folder.
 
 3. **In TTS Virtual Mic Bridge**:
    - Select the virtual mic device from the dropdown
-   - Paste your English text/questions
-   - Click "Speak All"
+   - Paste or type your English text
+   - Click "Speak" (or press `Ctrl+Enter`)
 
-4. **Your speaking app** will receive the audio as if you were speaking naturally
+4. **Your speaking app** will receive the audio as if you were speaking naturally, and you will hear it play back on your default speakers simultaneously.
 
 ## Settings
 
@@ -101,7 +101,7 @@ The executable will be in the `dist/` folder.
 ```
 tts-virtual-mic-bridge/
 ├── src/
-│   ├── core/          # TTS engines, audio router, queue, cache
+│   ├── core/          # TTS engines, audio router, cache
 │   ├── ui/            # PySide6 GUI
 │   ├── config/        # Settings management
 │   ├── utils/         # Logger, device utilities
