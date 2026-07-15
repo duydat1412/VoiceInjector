@@ -4,11 +4,27 @@ from typing import Optional
 from PySide6.QtCore import Signal, QObject, Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QTextEdit, QPushButton, QComboBox, QLabel, QSlider, QProgressBar,
-    QListWidget, QListWidgetItem, QMessageBox, QFileDialog,
-    QCheckBox, QSpinBox, QDialog, QFormLayout,
-    QLineEdit, QDialogButtonBox, QFrame,
+    QMainWindow,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QTextEdit,
+    QPushButton,
+    QComboBox,
+    QLabel,
+    QSlider,
+    QProgressBar,
+    QListWidget,
+    QListWidgetItem,
+    QMessageBox,
+    QFileDialog,
+    QCheckBox,
+    QSpinBox,
+    QDialog,
+    QFormLayout,
+    QLineEdit,
+    QDialogButtonBox,
+    QFrame,
 )
 
 from src.config.config_manager import ConfigManager
@@ -111,9 +127,7 @@ class MainWindow(QMainWindow):
     def _init_engine(self):
         cfg = self._config.config
         try:
-            self._tts_engine = create_tts_engine(
-                cfg.tts_engine, cfg.gcloud_credentials_path
-            )
+            self._tts_engine = create_tts_engine(cfg.tts_engine, cfg.gcloud_credentials_path)
         except Exception as e:
             logger.error(f"Failed to init TTS engine: {e}")
             self._tts_engine = create_tts_engine("google_translate")
@@ -160,9 +174,9 @@ class MainWindow(QMainWindow):
         # Engine selector
         engine_row = QHBoxLayout()
         self._engine_combo = QComboBox()
-        self._engine_combo.addItems([
-            "Google Translate (Free)", "Google Cloud (High Quality)", "Offline (pyttsx3)"
-        ])
+        self._engine_combo.addItems(
+            ["Google Translate (Free)", "Google Cloud (High Quality)", "Offline (pyttsx3)"]
+        )
         self._engine_combo.setCurrentIndex(0)
         engine_row.addWidget(QLabel("TTS Engine:"))
         engine_row.addWidget(self._engine_combo, 1)
@@ -174,8 +188,7 @@ class MainWindow(QMainWindow):
         # Text input
         self._text_edit = QTextEdit()
         self._text_edit.setPlaceholderText(
-            "Paste your English questions here...\n"
-            "One question per line for batch processing."
+            "Paste your English questions here...\n" "One question per line for batch processing."
         )
         self._text_edit.setMinimumHeight(150)
         self._text_edit.setAcceptRichText(False)
@@ -329,6 +342,7 @@ class MainWindow(QMainWindow):
     async def _process_queue(self):
         async def speak(text):
             await self._do_speak(text)
+
         await self._queue_manager.process(speak)
 
     async def _do_speak(self, text: str):
@@ -367,9 +381,7 @@ class MainWindow(QMainWindow):
 
     def _on_queue_item_change(self, index: int):
         total = self._queue_manager.total
-        self._status_label.setText(
-            f"Status: Speaking ({index + 1}/{total})"
-        )
+        self._status_label.setText(f"Status: Speaking ({index + 1}/{total})")
         self._progress.setMaximum(total)
         self._progress.setValue(index + 1)
 
@@ -395,8 +407,10 @@ class MainWindow(QMainWindow):
         self._audio_router.stop()
         geo = self.geometry()
         self._config.update(
-            window_x=geo.x(), window_y=geo.y(),
-            window_width=geo.width(), window_height=geo.height(),
+            window_x=geo.x(),
+            window_y=geo.y(),
+            window_width=geo.width(),
+            window_height=geo.height(),
             default_device=self._device_combo.currentText(),
             default_voice=self._voice_combo.currentText(),
             speech_rate=self._speed_slider.value() / 100.0,

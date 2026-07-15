@@ -48,9 +48,7 @@ class ConfigManager:
         return AppConfig()
 
     def save(self):
-        self._config_path.write_text(
-            self._config.model_dump_json(indent=2), encoding="utf-8"
-        )
+        self._config_path.write_text(self._config.model_dump_json(indent=2), encoding="utf-8")
 
     @property
     def config(self) -> AppConfig:

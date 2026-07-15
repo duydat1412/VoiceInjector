@@ -46,17 +46,15 @@ class TTSResult:
 
 class BaseTTSEngine(ABC):
     @abstractmethod
-    async def synthesize(self, text: str, voice: str = "en-US-Standard-A",
-                         rate: float = 1.0, pitch: float = 0.0) -> TTSResult:
-        ...
+    async def synthesize(
+        self, text: str, voice: str = "en-US-Standard-A", rate: float = 1.0, pitch: float = 0.0
+    ) -> TTSResult: ...
 
     @abstractmethod
-    def name(self) -> str:
-        ...
+    def name(self) -> str: ...
 
     @abstractmethod
-    def available_voices(self) -> List[str]:
-        ...
+    def available_voices(self) -> List[str]: ...
 
 
 class GoogleTranslateTTSEngine(BaseTTSEngine):
@@ -70,8 +68,9 @@ class GoogleTranslateTTSEngine(BaseTTSEngine):
     def available_voices(self) -> List[str]:
         return self._voices
 
-    async def synthesize(self, text: str, voice: str = "en-US-Standard-A",
-                         rate: float = 1.0, pitch: float = 0.0) -> TTSResult:
+    async def synthesize(
+        self, text: str, voice: str = "en-US-Standard-A", rate: float = 1.0, pitch: float = 0.0
+    ) -> TTSResult:
         params = {
             "ie": "UTF-8",
             "q": text,
@@ -85,8 +84,9 @@ class GoogleTranslateTTSEngine(BaseTTSEngine):
         }
         timeout = aiohttp.ClientTimeout(total=15)
         async with aiohttp.ClientSession() as session:
-            async with session.get(GOOGLE_TRANSLATE_TTS_URL, params=params,
-                                   headers=headers, timeout=timeout) as resp:
+            async with session.get(
+                GOOGLE_TRANSLATE_TTS_URL, params=params, headers=headers, timeout=timeout
+            ) as resp:
                 if resp.status != 200:
                     raise RuntimeError(f"Google Translate TTS returned HTTP {resp.status}")
                 mp3_data = await resp.read()
@@ -97,6 +97,7 @@ class GoogleTranslateTTSEngine(BaseTTSEngine):
     def _convert_mp3_to_wav(self, mp3_data: bytes) -> bytes:
         try:
             from pydub import AudioSegment
+
             audio = AudioSegment.from_mp3(io.BytesIO(mp3_data))
             buf = io.BytesIO()
             audio.export(buf, format="wav")
@@ -111,8 +112,10 @@ class GoogleTranslateTTSEngine(BaseTTSEngine):
         wav_path = mp3_path.replace(".mp3", ".wav")
         try:
             import subprocess
-            subprocess.run(["ffmpeg", "-y", "-i", mp3_path, wav_path],
-                           capture_output=True, timeout=30)
+
+            subprocess.run(
+                ["ffmpeg", "-y", "-i", mp3_path, wav_path], capture_output=True, timeout=30
+            )
             with open(wav_path, "rb") as f:
                 return f.read()
         except Exception:
@@ -130,11 +133,10 @@ class OfflineTTSEngine(BaseTTSEngine):
         self._engine = pyttsx3.init()
         all_voices = self._engine.getProperty("voices")
         self._voices = [
-            v.name for v in all_voices
-            if v.languages and (
-                "english" in v.name.lower()
-                or v.languages[0].lower().startswith("en")
-            )
+            v.name
+            for v in all_voices
+            if v.languages
+            and ("english" in v.name.lower() or v.languages[0].lower().startswith("en"))
         ]
         if not self._voices:
             self._voices = ["default"]
@@ -146,8 +148,9 @@ class OfflineTTSEngine(BaseTTSEngine):
     def available_voices(self) -> List[str]:
         return self._voices
 
-    async def synthesize(self, text: str, voice: str = "en-US-Standard-A",
-                         rate: float = 1.0, pitch: float = 0.0) -> TTSResult:
+    async def synthesize(
+        self, text: str, voice: str = "en-US-Standard-A", rate: float = 1.0, pitch: float = 0.0
+    ) -> TTSResult:
         engine = pyttsx3.init()
         try:
             engine.setProperty("rate", int(engine.getProperty("rate") * rate))
@@ -187,6 +190,7 @@ class GoogleCloudTTSEngine(BaseTTSEngine):
             return self._client
         try:
             from google.cloud import texttospeech
+
             if self._creds_path and Path(self._creds_path).exists():
                 self._client = texttospeech.TextToSpeechClient.from_service_account_file(
                     self._creds_path
@@ -200,8 +204,9 @@ class GoogleCloudTTSEngine(BaseTTSEngine):
                 "Run: pip install google-cloud-texttospeech"
             )
 
-    async def synthesize(self, text: str, voice: str = "en-US-Standard-A",
-                         rate: float = 1.0, pitch: float = 0.0) -> TTSResult:
+    async def synthesize(
+        self, text: str, voice: str = "en-US-Standard-A", rate: float = 1.0, pitch: float = 0.0
+    ) -> TTSResult:
         client = self._get_client()
         voice_name = voice if voice in self._voices else "en-US-Standard-A"
         response = client.synthesize_speech(
@@ -216,8 +221,9 @@ class GoogleCloudTTSEngine(BaseTTSEngine):
         return TTSResult(audio_data=response.audio_content, sample_rate=24000, format="wav")
 
 
-def create_tts_engine(engine_type: str = "google_translate",
-                      credentials_path: str = "") -> BaseTTSEngine:
+def create_tts_engine(
+    engine_type: str = "google_translate", credentials_path: str = ""
+) -> BaseTTSEngine:
     engines = {
         "google_translate": GoogleTranslateTTSEngine,
         "google_cloud": lambda: GoogleCloudTTSEngine(credentials_path),

@@ -51,8 +51,7 @@ class CacheManager:
     def get(self, text: str, voice: str, rate: float = 1.0, pitch: float = 0.0) -> Optional[dict]:
         key = self._make_key(text, voice, rate, pitch)
         row = self._conn.execute(
-            "SELECT audio_data, sample_rate, format FROM audio_cache WHERE key = ?",
-            (key,)
+            "SELECT audio_data, sample_rate, format FROM audio_cache WHERE key = ?", (key,)
         ).fetchone()
         if row:
             return {
@@ -62,14 +61,22 @@ class CacheManager:
             }
         return None
 
-    def put(self, text: str, voice: str, rate: float, pitch: float,
-            audio_data: bytes, sample_rate: int, fmt: str = "wav"):
+    def put(
+        self,
+        text: str,
+        voice: str,
+        rate: float,
+        pitch: float,
+        audio_data: bytes,
+        sample_rate: int,
+        fmt: str = "wav",
+    ):
         key = self._make_key(text, voice, rate, pitch)
         self._conn.execute(
             """INSERT OR REPLACE INTO audio_cache
                (key, audio_data, sample_rate, format, voice, created_at, size_bytes)
                VALUES (?, ?, ?, ?, ?, ?, ?)""",
-            (key, audio_data, sample_rate, fmt, voice, time.time(), len(audio_data))
+            (key, audio_data, sample_rate, fmt, voice, time.time(), len(audio_data)),
         )
         self._conn.commit()
         self._evict_if_needed()

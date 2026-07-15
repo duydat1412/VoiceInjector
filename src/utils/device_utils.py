@@ -7,14 +7,16 @@ def list_audio_devices() -> List[Dict]:
     devices = sd.query_devices()
     result = []
     for idx, dev in enumerate(devices):
-        result.append({
-            "index": idx,
-            "name": dev["name"],
-            "max_output_channels": dev["max_output_channels"],
-            "max_input_channels": dev["max_input_channels"],
-            "default_samplerate": dev["default_samplerate"],
-            "hostapi": dev["hostapi"],
-        })
+        result.append(
+            {
+                "index": idx,
+                "name": dev["name"],
+                "max_output_channels": dev["max_output_channels"],
+                "max_input_channels": dev["max_input_channels"],
+                "default_samplerate": dev["default_samplerate"],
+                "hostapi": dev["hostapi"],
+            }
+        )
     return result
 
 
@@ -23,8 +25,16 @@ def list_output_devices() -> List[Dict]:
 
 
 def list_virtual_output_devices() -> List[Dict]:
-    keywords = ["cable", "vb-audio", "voicemeeter", "blackhole", "soundflower",
-                "virtual", "loopback", "wavirtual"]
+    keywords = [
+        "cable",
+        "vb-audio",
+        "voicemeeter",
+        "blackhole",
+        "soundflower",
+        "virtual",
+        "loopback",
+        "wavirtual",
+    ]
     output_devices = list_output_devices()
     virtual = []
     for d in output_devices:
