@@ -50,6 +50,7 @@ class AudioRouter:
         self._is_playing = True
 
         def callback(outdata, frames, time_info, status):
+            nonlocal audio
             if self._stop_flag.is_set():
                 raise sd.CallbackStop
             if len(audio) == 0:
@@ -59,7 +60,6 @@ class AudioRouter:
             if n < frames:
                 outdata[n:] = 0
                 raise sd.CallbackStop
-            nonlocal audio
             audio = audio[n:]
 
         try:

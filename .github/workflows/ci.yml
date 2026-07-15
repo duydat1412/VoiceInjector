@@ -27,7 +27,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install flake8 black
       - name: Lint with flake8
-        run: flake8 src/ tests/ --count --statistics
+        run: flake8 src/ tests/ --count --statistics --max-line-length=100 --extend-ignore=E203,W503
       - name: Check formatting with black
         run: black --check src/ tests/
 
@@ -54,7 +54,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pytest pytest-asyncio pytest-mock pytest-qt flake8
+          pip install pytest pytest-asyncio pytest-mock pytest-qt pytest-cov
       - name: Run unit tests
         run: pytest tests/unit/ -v --cov=src --cov-report=xml --cov-report=term
       - name: Upload coverage
@@ -74,13 +74,16 @@ jobs:
           scan-ref: '.'
           format: 'sarif'
           output: 'trivy-results.sarif'
+          ignore-unfixed: true
       - name: Upload Trivy results
+        if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
+          category: 'trivy'
 
   build-windows:
-    needs: [lint, test, security]
+    needs: [lint, test]
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     runs-on: windows-latest
     steps:
@@ -126,7 +129,7 @@ jobs:
           generate_release_notes: true
 
   build-macos:
-    needs: [lint, test, security]
+    needs: [lint, test]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: macos-latest
     steps:

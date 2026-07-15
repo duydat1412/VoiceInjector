@@ -221,7 +221,8 @@ class MainWindow(QMainWindow):
     def _setup_shortcuts(self):
         QShortcut(QKeySequence("Return"), self, self._on_speak).setContext(Qt.ApplicationShortcut)
         QShortcut(QKeySequence("Escape"), self, self._on_stop).setContext(Qt.ApplicationShortcut)
-        QShortcut(QKeySequence("Ctrl+Return"), self, self._on_speak).setContext(Qt.ApplicationShortcut)
+        ctrl = QShortcut(QKeySequence("Ctrl+Return"), self, self._on_speak)
+        ctrl.setContext(Qt.ApplicationShortcut)
 
     def _load_settings(self):
         cfg = self._config.config
