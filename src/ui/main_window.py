@@ -23,7 +23,6 @@ from PySide6.QtWidgets import (
     QDialog,
     QFormLayout,
     QLineEdit,
-    QDialogButtonBox,
     QFrame,
 )
 
@@ -36,6 +35,226 @@ from src.core.cache_manager import CacheManager
 from src.core.queue_manager import QueueManager, QueueState
 
 logger = SpeechLogger()
+
+STYLE = """
+QMainWindow {
+    background-color: #1e1e2e;
+}
+QLabel {
+    color: #cdd6f4;
+    font-size: 13px;
+}
+QLabel#titleLabel {
+    color: #cba6f7;
+    font-size: 16px;
+    font-weight: bold;
+    padding: 4px 0;
+}
+QLabel#statusIndicator {
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 4px;
+    background-color: #313244;
+    color: #a6adc8;
+}
+QLabel#statusIndicator[active="true"] {
+    background-color: #1e1e3a;
+    color: #a6e3a1;
+}
+QTextEdit {
+    background-color: #181825;
+    color: #cdd6f4;
+    border: 1px solid #45475a;
+    border-radius: 6px;
+    padding: 8px;
+    font-size: 13px;
+    selection-background-color: #585b70;
+}
+QTextEdit:focus {
+    border: 1px solid #cba6f7;
+}
+QComboBox {
+    background-color: #313244;
+    color: #cdd6f4;
+    border: 1px solid #45475a;
+    border-radius: 4px;
+    padding: 5px 10px;
+    min-height: 24px;
+    font-size: 12px;
+}
+QComboBox:hover {
+    border: 1px solid #585b70;
+}
+QComboBox::drop-down {
+    border: none;
+    width: 24px;
+}
+QComboBox::down-arrow {
+    image: none;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-top: 5px solid #cdd6f4;
+    margin-right: 8px;
+}
+QComboBox QAbstractItemView {
+    background-color: #313244;
+    color: #cdd6f4;
+    selection-background-color: #45475a;
+    border: 1px solid #585b70;
+    border-radius: 4px;
+}
+QPushButton {
+    background-color: #313244;
+    color: #cdd6f4;
+    border: 1px solid #45475a;
+    border-radius: 4px;
+    padding: 6px 14px;
+    font-size: 12px;
+    min-height: 20px;
+}
+QPushButton:hover {
+    background-color: #45475a;
+    border: 1px solid #585b70;
+}
+QPushButton:pressed {
+    background-color: #585b70;
+}
+QPushButton:disabled {
+    background-color: #1e1e2e;
+    color: #585b70;
+    border: 1px solid #313244;
+}
+QPushButton#speakBtn {
+    background-color: #a6e3a1;
+    color: #1e1e2e;
+    border: none;
+    font-weight: bold;
+    font-size: 13px;
+}
+QPushButton#speakBtn:hover {
+    background-color: #94e2d5;
+}
+QPushButton#speakBtn:disabled {
+    background-color: #45475a;
+    color: #585b70;
+}
+QPushButton#stopBtn {
+    background-color: #f38ba8;
+    color: #1e1e2e;
+    border: none;
+    font-weight: bold;
+    font-size: 13px;
+}
+QPushButton#stopBtn:hover {
+    background-color: #eba0ac;
+}
+QPushButton#stopBtn:disabled {
+    background-color: #45475a;
+    color: #585b70;
+}
+QPushButton#settingsBtn {
+    background-color: #45475a;
+    padding: 6px 12px;
+}
+QPushButton#settingsBtn:hover {
+    background-color: #585b70;
+}
+QPushButton#iconBtn {
+    background-color: #313244;
+    border: 1px solid #45475a;
+    padding: 4px;
+    min-width: 28px;
+    max-width: 28px;
+    min-height: 24px;
+    max-height: 24px;
+    font-size: 14px;
+}
+QPushButton#iconBtn:hover {
+    background-color: #45475a;
+}
+QSlider::groove:horizontal {
+    height: 4px;
+    background: #45475a;
+    border-radius: 2px;
+}
+QSlider::handle:horizontal {
+    background: #cba6f7;
+    width: 14px;
+    height: 14px;
+    margin: -5px 0;
+    border-radius: 7px;
+}
+QSlider::handle:horizontal:hover {
+    background: #f5c2e7;
+}
+QProgressBar {
+    background-color: #313244;
+    border: none;
+    border-radius: 3px;
+    height: 6px;
+    text-align: center;
+    color: transparent;
+}
+QProgressBar::chunk {
+    background-color: #cba6f7;
+    border-radius: 3px;
+}
+QListWidget {
+    background-color: #181825;
+    color: #cdd6f4;
+    border: 1px solid #45475a;
+    border-radius: 6px;
+    padding: 4px;
+    font-size: 12px;
+    outline: none;
+}
+QListWidget::item {
+    padding: 4px 8px;
+    border-radius: 3px;
+}
+QListWidget::item:selected {
+    background-color: #45475a;
+}
+QListWidget::item:alternate {
+    background-color: #1e1e2e;
+}
+QScrollBar:vertical {
+    background: #181825;
+    width: 8px;
+    border-radius: 4px;
+}
+QScrollBar::handle:vertical {
+    background: #45475a;
+    min-height: 20px;
+    border-radius: 4px;
+}
+QScrollBar::handle:vertical:hover {
+    background: #585b70;
+}
+QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
+    height: 0px;
+}
+QScrollBar:horizontal {
+    background: #181825;
+    height: 8px;
+    border-radius: 4px;
+}
+QScrollBar::handle:horizontal {
+    background: #45475a;
+    min-width: 20px;
+    border-radius: 4px;
+}
+QStatusBar {
+    background-color: #181825;
+    color: #a6adc8;
+    font-size: 11px;
+    border-top: 1px solid #313244;
+}
+QFrame#separator {
+    background-color: #313244;
+    max-height: 1px;
+}
+"""
 
 
 class AsyncWorker(QObject):
@@ -62,28 +281,88 @@ class SettingsDialog(QDialog):
         super().__init__(parent)
         self._config = config
         self.setWindowTitle("Settings")
-        self.setMinimumWidth(450)
+        self.setMinimumWidth(480)
+        self.setStyleSheet("""
+            QDialog { background-color: #1e1e2e; }
+            QLabel { color: #cdd6f4; }
+            QLineEdit {
+                background-color: #181825; color: #cdd6f4;
+                border: 1px solid #45475a; border-radius: 4px;
+                padding: 5px 8px; font-size: 12px;
+            }
+            QLineEdit:focus { border: 1px solid #cba6f7; }
+            QSpinBox {
+                background-color: #313244; color: #cdd6f4;
+                border: 1px solid #45475a; border-radius: 4px;
+                padding: 5px; font-size: 12px;
+            }
+            QCheckBox { color: #cdd6f4; spacing: 8px; }
+            QCheckBox::indicator {
+                width: 16px; height: 16px;
+                border: 1px solid #45475a; border-radius: 3px;
+                background-color: #181825;
+            }
+            QCheckBox::indicator:checked {
+                background-color: #a6e3a1; border-color: #a6e3a1;
+            }
+            QPushButton {
+                background-color: #313244; color: #cdd6f4;
+                border: 1px solid #45475a; border-radius: 4px;
+                padding: 6px 16px; font-size: 12px;
+            }
+            QPushButton:hover { background-color: #45475a; }
+            QPushButton#okBtn {
+                background-color: #a6e3a1; color: #1e1e2e;
+                border: none; font-weight: bold;
+            }
+            QPushButton#okBtn:hover { background-color: #94e2d5; }
+            QPushButton#cancelBtn {
+                background-color: #f38ba8; color: #1e1e2e; border: none;
+            }
+            QPushButton#cancelBtn:hover { background-color: #eba0ac; }
+        """)
         self._build_ui()
         self._load_values()
 
     def _build_ui(self):
         layout = QFormLayout(self)
+        layout.setSpacing(12)
+        layout.setContentsMargins(16, 16, 16, 16)
+
         self._creds_path = QLineEdit()
+        self._creds_path.setPlaceholderText("Path to service-account.json")
         self._creds_btn = QPushButton("Browse...")
+        self._creds_btn.setFixedWidth(80)
         creds_row = QHBoxLayout()
-        creds_row.addWidget(self._creds_path)
+        creds_row.setSpacing(8)
+        creds_row.addWidget(self._creds_path, 1)
         creds_row.addWidget(self._creds_btn)
         self._creds_btn.clicked.connect(self._browse_creds)
         layout.addRow("Google Cloud Credentials:", creds_row)
+
         self._max_cache = QSpinBox()
         self._max_cache.setRange(50, 2000)
         self._max_cache.setSuffix(" MB")
         layout.addRow("Max Cache Size:", self._max_cache)
+
         self._dark_mode = QCheckBox("Enable Dark Mode")
+        self._dark_mode.setChecked(True)
+        self._dark_mode.setEnabled(False)
         layout.addRow("Appearance:", self._dark_mode)
-        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
-        buttons.accepted.connect(self._save)
-        buttons.rejected.connect(self.reject)
+
+        buttons = QHBoxLayout()
+        buttons.setSpacing(8)
+        buttons.addStretch()
+        ok_btn = QPushButton("Save")
+        ok_btn.setObjectName("okBtn")
+        ok_btn.setFixedWidth(80)
+        cancel_btn = QPushButton("Cancel")
+        cancel_btn.setObjectName("cancelBtn")
+        cancel_btn.setFixedWidth(80)
+        ok_btn.clicked.connect(self._save)
+        cancel_btn.clicked.connect(self.reject)
+        buttons.addWidget(ok_btn)
+        buttons.addWidget(cancel_btn)
         layout.addRow(buttons)
 
     def _browse_creds(self):
@@ -133,100 +412,169 @@ class MainWindow(QMainWindow):
             self._tts_engine = create_tts_engine("google_translate")
 
     def _setup_ui(self):
-        self.setWindowTitle("TTS Virtual Mic Bridge")
-        self.setMinimumSize(500, 600)
+        self.setWindowTitle("VoiceInjector")
+        self.setMinimumSize(520, 640)
+        self.setStyleSheet(STYLE)
+
         central = QWidget()
         self.setCentralWidget(central)
-        layout = QVBoxLayout(central)
-        layout.setSpacing(8)
+        main_layout = QVBoxLayout(central)
+        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(16, 12, 16, 12)
 
-        # Top toolbar area
-        toolbar = QHBoxLayout()
+        # Title
+        title = QLabel("VoiceInjector")
+        title.setObjectName("titleLabel")
+        title.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(title)
+
+        subtitle = QLabel("Text-to-Speech into Virtual Microphone")
+        subtitle.setAlignment(Qt.AlignCenter)
+        subtitle.setStyleSheet("color: #6c7086; font-size: 11px; padding-bottom: 4px;")
+        main_layout.addWidget(subtitle)
+
+        # Separator
+        sep1 = QFrame()
+        sep1.setObjectName("separator")
+        sep1.setFrameShape(QFrame.HLine)
+        main_layout.addWidget(sep1)
+
+        # Device row
+        device_row = QHBoxLayout()
+        device_row.setSpacing(8)
+        device_label = QLabel("Microphone")
+        device_label.setStyleSheet("color: #a6adc8; font-size: 11px; font-weight: bold;")
         self._device_combo = QComboBox()
-        self._device_combo.setMinimumWidth(220)
-        self._refresh_btn = QPushButton("🔄")
+        self._device_combo.setMinimumWidth(200)
+        self._refresh_btn = QPushButton("\u21bb")
+        self._refresh_btn.setObjectName("iconBtn")
         self._refresh_btn.setToolTip("Refresh audio devices")
-        self._refresh_btn.setFixedWidth(32)
-        toolbar.addWidget(QLabel("Virtual Mic:"))
-        toolbar.addWidget(self._device_combo, 1)
-        toolbar.addWidget(self._refresh_btn)
-        layout.addLayout(toolbar)
+        device_row.addWidget(device_label)
+        device_row.addWidget(self._device_combo, 1)
+        device_row.addWidget(self._refresh_btn)
+        main_layout.addLayout(device_row)
 
-        # Voice and speed row
+        # Controls row
         controls = QHBoxLayout()
+        controls.setSpacing(12)
+
+        voice_col = QVBoxLayout()
+        voice_col.setSpacing(4)
+        voice_label = QLabel("Voice")
+        voice_label.setStyleSheet("color: #a6adc8; font-size: 11px; font-weight: bold;")
         self._voice_combo = QComboBox()
         self._voice_combo.setMinimumWidth(160)
         voices = self._tts_engine.available_voices() if self._tts_engine else []
         self._voice_combo.addItems(voices)
-        controls.addWidget(QLabel("Voice:"))
-        controls.addWidget(self._voice_combo)
-        controls.addWidget(QLabel("Speed:"))
+        voice_col.addWidget(voice_label)
+        voice_col.addWidget(self._voice_combo)
+
+        speed_col = QVBoxLayout()
+        speed_col.setSpacing(4)
+        speed_header = QHBoxLayout()
+        speed_label = QLabel("Speed")
+        speed_label.setStyleSheet("color: #a6adc8; font-size: 11px; font-weight: bold;")
+        self._speed_label = QLabel("1.0x")
+        self._speed_label.setStyleSheet("color: #cba6f7; font-size: 11px; font-weight: bold;")
+        self._speed_label.setFixedWidth(36)
+        self._speed_label.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        speed_header.addWidget(speed_label)
+        speed_header.addStretch()
+        speed_header.addWidget(self._speed_label)
         self._speed_slider = QSlider(Qt.Horizontal)
         self._speed_slider.setRange(50, 200)
         self._speed_slider.setValue(100)
         self._speed_slider.setToolTip("Speech rate: 50% to 200%")
-        controls.addWidget(self._speed_slider)
-        self._speed_label = QLabel("1.0x")
-        self._speed_label.setFixedWidth(40)
-        controls.addWidget(self._speed_label)
-        layout.addLayout(controls)
+        speed_col.addLayout(speed_header)
+        speed_col.addWidget(self._speed_slider)
 
-        # Engine selector
+        controls.addLayout(voice_col, 1)
+        controls.addLayout(speed_col, 1)
+        main_layout.addLayout(controls)
+
+        # Engine row
         engine_row = QHBoxLayout()
+        engine_row.setSpacing(8)
+        engine_label = QLabel("Engine")
+        engine_label.setStyleSheet("color: #a6adc8; font-size: 11px; font-weight: bold;")
         self._engine_combo = QComboBox()
         self._engine_combo.addItems(
             ["Google Translate (Free)", "Google Cloud (High Quality)", "Offline (pyttsx3)"]
         )
         self._engine_combo.setCurrentIndex(0)
-        engine_row.addWidget(QLabel("TTS Engine:"))
+        self._settings_btn = QPushButton("Settings")
+        self._settings_btn.setObjectName("settingsBtn")
+        self._settings_btn.setFixedWidth(72)
+        engine_row.addWidget(engine_label)
         engine_row.addWidget(self._engine_combo, 1)
-        self._settings_btn = QPushButton("⚙️ Settings")
-        self._settings_btn.setFixedWidth(100)
         engine_row.addWidget(self._settings_btn)
-        layout.addLayout(engine_row)
+        main_layout.addLayout(engine_row)
+
+        # Separator
+        sep2 = QFrame()
+        sep2.setObjectName("separator")
+        sep2.setFrameShape(QFrame.HLine)
+        main_layout.addWidget(sep2)
 
         # Text input
+        text_label = QLabel("Text to speak")
+        text_label.setStyleSheet("color: #a6adc8; font-size: 11px; font-weight: bold;")
+        main_layout.addWidget(text_label)
         self._text_edit = QTextEdit()
         self._text_edit.setPlaceholderText(
             "Paste your English questions here...\n" "One question per line for batch processing."
         )
-        self._text_edit.setMinimumHeight(150)
+        self._text_edit.setMinimumHeight(140)
         self._text_edit.setAcceptRichText(False)
-        layout.addWidget(QLabel("Text to speak:"))
-        layout.addWidget(self._text_edit)
+        main_layout.addWidget(self._text_edit)
 
         # Action buttons
         btn_row = QHBoxLayout()
-        self._speak_btn = QPushButton("▶ Speak All")
-        self._speak_btn.setMinimumHeight(36)
-        self._stop_btn = QPushButton("⏹ Stop")
-        self._stop_btn.setMinimumHeight(36)
+        btn_row.setSpacing(8)
+        self._speak_btn = QPushButton("Speak All")
+        self._speak_btn.setObjectName("speakBtn")
+        self._speak_btn.setMinimumHeight(34)
+        self._stop_btn = QPushButton("Stop")
+        self._stop_btn.setObjectName("stopBtn")
+        self._stop_btn.setMinimumHeight(34)
         self._stop_btn.setEnabled(False)
-        self._skip_btn = QPushButton("⏭ Skip")
-        self._skip_btn.setMinimumHeight(36)
+        self._skip_btn = QPushButton("Skip")
+        self._skip_btn.setMinimumHeight(34)
         self._skip_btn.setEnabled(False)
-        self._clear_btn = QPushButton("🗑 Clear")
-        self._clear_btn.setMinimumHeight(36)
+        self._clear_btn = QPushButton("Clear")
+        self._clear_btn.setMinimumHeight(34)
         btn_row.addWidget(self._speak_btn)
         btn_row.addWidget(self._stop_btn)
         btn_row.addWidget(self._skip_btn)
         btn_row.addWidget(self._clear_btn)
-        layout.addLayout(btn_row)
+        main_layout.addLayout(btn_row)
 
-        # Status and queue
-        self._status_label = QLabel("Status: Idle")
-        self._status_label.setFrameStyle(QFrame.Panel | QFrame.Sunken)
-        layout.addWidget(self._status_label)
-
-        self._queue_list = QListWidget()
-        self._queue_list.setMaximumHeight(120)
-        layout.addWidget(QLabel("Queue:"))
-        layout.addWidget(self._queue_list)
+        # Status
+        self._status_label = QLabel("Idle")
+        self._status_label.setObjectName("statusIndicator")
+        self._status_label.setAlignment(Qt.AlignCenter)
+        main_layout.addWidget(self._status_label)
 
         # Progress
         self._progress = QProgressBar()
+        self._progress.setFixedHeight(6)
         self._progress.setVisible(False)
-        layout.addWidget(self._progress)
+        main_layout.addWidget(self._progress)
+
+        # Queue
+        queue_header = QHBoxLayout()
+        queue_label = QLabel("Queue")
+        queue_label.setStyleSheet("color: #a6adc8; font-size: 11px; font-weight: bold;")
+        self._queue_count = QLabel("0")
+        self._queue_count.setStyleSheet("color: #585b70; font-size: 11px;")
+        queue_header.addWidget(queue_label)
+        queue_header.addStretch()
+        queue_header.addWidget(self._queue_count)
+        main_layout.addLayout(queue_header)
+
+        self._queue_list = QListWidget()
+        self._queue_list.setMaximumHeight(110)
+        main_layout.addWidget(self._queue_list)
 
         # Status bar
         self.statusBar().showMessage("Ready")
@@ -337,6 +685,10 @@ class MainWindow(QMainWindow):
         self._stop_btn.setEnabled(True)
         self._skip_btn.setEnabled(True)
         self._progress.setVisible(True)
+        self._status_label.setText("Speaking...")
+        self._status_label.setProperty("active", True)
+        self._status_label.style().unpolish(self._status_label)
+        self._status_label.style().polish(self._status_label)
         asyncio.ensure_future(self._process_queue())
 
     async def _process_queue(self):
@@ -381,7 +733,7 @@ class MainWindow(QMainWindow):
 
     def _on_queue_item_change(self, index: int):
         total = self._queue_manager.total
-        self._status_label.setText(f"Status: Speaking ({index + 1}/{total})")
+        self._status_label.setText(f"Speaking {index + 1}/{total}")
         self._progress.setMaximum(total)
         self._progress.setValue(index + 1)
 
@@ -394,14 +746,20 @@ class MainWindow(QMainWindow):
         self._stop_btn.setEnabled(False)
         self._skip_btn.setEnabled(False)
         self._progress.setVisible(False)
-        self._status_label.setText("Status: Idle")
+        self._status_label.setText("Idle")
+        self._status_label.setProperty("active", False)
+        self._status_label.style().unpolish(self._status_label)
+        self._status_label.style().polish(self._status_label)
 
     def _update_queue_display(self):
         self._queue_list.clear()
+        count = 0
         for item in self._queue_manager.items:
-            prefix = "⏭ " if item.skipped else ""
-            display = f"{prefix}{item.text[:60]}{'...' if len(item.text) > 60 else ''}"
+            prefix = "[skipped] " if item.skipped else ""
+            display = f"{prefix}{item.text[:55]}{'...' if len(item.text) > 55 else ''}"
             QListWidgetItem(display, self._queue_list)
+            count += 1
+        self._queue_count.setText(str(count))
 
     def closeEvent(self, event):
         self._audio_router.stop()

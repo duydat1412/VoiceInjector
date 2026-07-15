@@ -1,45 +1,71 @@
 import sys
 import asyncio
 
-from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QPalette, QColor
+from PySide6.QtGui import QPalette, QColor, QFont
 
 from src.ui.main_window import MainWindow
-from src.config.config_manager import ConfigManager
 from src.utils.logger import SpeechLogger
 
 logger = SpeechLogger()
 
-
-def apply_theme(app: QApplication, dark: bool):
-    if dark:
-        palette = QPalette()
-        palette.setColor(QPalette.Window, QColor(53, 53, 53))
-        palette.setColor(QPalette.WindowText, Qt.white)
-        palette.setColor(QPalette.Base, QColor(35, 35, 35))
-        palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
-        palette.setColor(QPalette.ToolTipBase, QColor(25, 25, 25))
-        palette.setColor(QPalette.ToolTipText, Qt.white)
-        palette.setColor(QPalette.Text, Qt.white)
-        palette.setColor(QPalette.Button, QColor(53, 53, 53))
-        palette.setColor(QPalette.ButtonText, Qt.white)
-        palette.setColor(QPalette.BrightText, Qt.red)
-        palette.setColor(QPalette.Link, QColor(42, 130, 218))
-        palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
-        palette.setColor(QPalette.HighlightedText, Qt.black)
-        app.setPalette(palette)
-    else:
-        app.setPalette(app.style().standardPalette())
+GLOBAL_STYLE = """
+QToolTip {
+    background-color: #313244;
+    color: #cdd6f4;
+    border: 1px solid #45475a;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 11px;
+}
+QMenu {
+    background-color: #313244;
+    color: #cdd6f4;
+    border: 1px solid #45475a;
+    border-radius: 4px;
+    padding: 4px;
+}
+QMenu::item {
+    padding: 4px 20px;
+    border-radius: 3px;
+}
+QMenu::item:selected {
+    background-color: #45475a;
+}
+QMessageBox {
+    background-color: #1e1e2e;
+}
+QMessageBox QLabel {
+    color: #cdd6f4;
+}
+"""
 
 
 def main():
     app = QApplication(sys.argv)
-    app.setApplicationName("TTS Virtual Mic Bridge")
-    app.setOrganizationName("TTSVmicBridge")
+    app.setApplicationName("VoiceInjector")
+    app.setOrganizationName("VoiceInjector")
 
-    config = ConfigManager()
-    apply_theme(app, config.config.dark_mode)
+    app.setStyleSheet(GLOBAL_STYLE)
+
+    palette = QPalette()
+    palette.setColor(QPalette.Window, QColor(30, 30, 46))
+    palette.setColor(QPalette.WindowText, QColor(205, 214, 244))
+    palette.setColor(QPalette.Base, QColor(24, 24, 37))
+    palette.setColor(QPalette.AlternateBase, QColor(30, 30, 46))
+    palette.setColor(QPalette.ToolTipBase, QColor(49, 50, 68))
+    palette.setColor(QPalette.ToolTipText, QColor(205, 214, 244))
+    palette.setColor(QPalette.Text, QColor(205, 214, 244))
+    palette.setColor(QPalette.Button, QColor(49, 50, 68))
+    palette.setColor(QPalette.ButtonText, QColor(205, 214, 244))
+    palette.setColor(QPalette.BrightText, QColor(243, 139, 168))
+    palette.setColor(QPalette.Link, QColor(203, 166, 247))
+    palette.setColor(QPalette.Highlight, QColor(203, 166, 247))
+    palette.setColor(QPalette.HighlightedText, QColor(30, 30, 46))
+    app.setPalette(palette)
+
+    font = QFont("Segoe UI", 10)
+    app.setFont(font)
 
     try:
         loop = asyncio.new_event_loop()

@@ -40,6 +40,15 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
+      - name: Get version
+        id: version
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=latest" >> $GITHUB_OUTPUT
+          fi
       - name: Build EXE
         run: |
           pyinstaller --onefile --windowed --name "VoiceInjector" `
@@ -63,11 +72,39 @@ jobs:
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VoiceInjector-Windows
+          name: VoiceInjector-Windows-${{ steps.version.outputs.tag }}
           path: dist/VoiceInjector.exe
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v1
+      - name: Delete old latest release
+        if: steps.version.outputs.tag == 'latest'
+        uses: chip/action-delete-release@v1.3.1
         with:
+          release: latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        continue-on-error: true
+      - name: Delete old latest tag
+        if: steps.version.outputs.tag == 'latest'
+        run: git push origin :refs/tags/latest
+        continue-on-error: true
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: "VoiceInjector ${{ steps.version.outputs.tag }}"
+          body: |
+            ## VoiceInjector ${{ steps.version.outputs.tag }}
+
+            **Download `VoiceInjector.exe`** và chạy trực tiếp trên Windows 10/11.
+
+            ### Yêu cầu
+            - Cài [VB-Cable](https://vb-audio.com/Cable/) để có virtual mic
+
+            ### Sử dụng
+            1. Chọn Virtual Mic trong dropdown
+            2. Paste text tiếng Anh
+            3. Bấm Speak All
+            4. Web app speaking chọn microphone tương ứng
           files: dist/VoiceInjector.exe
+          prerelease: ${{ steps.version.outputs.tag == 'latest' }}
+          make_latest: ${{ steps.version.outputs.tag != 'latest' }}
           generate_release_notes: true
