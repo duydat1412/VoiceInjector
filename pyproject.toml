@@ -1,0 +1,33 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "tts-virtual-mic-bridge"
+version = "1.0.0"
+description = "Desktop app that reads text aloud into a virtual microphone for testing speaking practice systems"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [
+    {name = "TTS Virtual Mic Bridge Team"},
+]
+
+[project.scripts]
+tts-vmic-bridge = "src.main:main"
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+include = '\.pyx?$'
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.flake8]
+max-line-length = 100
+extend-ignore = ["E203", "W503"]
