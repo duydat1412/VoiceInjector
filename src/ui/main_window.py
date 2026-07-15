@@ -1,5 +1,4 @@
 import asyncio
-import sys
 from typing import Optional
 
 import sounddevice as sd
@@ -244,7 +243,8 @@ class SpeakThread(QThread):
     status_update = Signal(str)
     speak_error = Signal(str)
 
-    def __init__(self, tts_engine, audio_router, cache, text, voice, rate, virtual_device, speaker_device):
+    def __init__(self, tts_engine, audio_router, cache, text,
+                 voice, rate, virtual_device, speaker_device):
         super().__init__()
         self._tts_engine = tts_engine
         self._audio_router = audio_router
@@ -584,6 +584,22 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(self._progress)
 
         main_layout.addStretch()
+
+        # Credits
+        credit_layout = QHBoxLayout()
+        credit_layout.setAlignment(Qt.AlignCenter)
+        credit_layout.setContentsMargins(0, 8, 0, 0)
+        credit_label = QLabel(
+            'Made with <span style="color:#f38ba8;">&hearts;</span> by '
+            '<a href="https://github.com/duydat1412" '
+            'style="color:#cba6f7;text-decoration:none;">duydat1412</a>'
+        )
+        credit_label.setTextFormat(Qt.RichText)
+        credit_label.setOpenExternalLinks(True)
+        credit_label.setStyleSheet("color: #585b70; font-size: 11px;")
+        credit_layout.addWidget(credit_label)
+        main_layout.addLayout(credit_layout)
+
         self.statusBar().showMessage("Ready")
 
     # -- Shortcuts ---------------------------------------------------------
