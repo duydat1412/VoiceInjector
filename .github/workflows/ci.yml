@@ -76,16 +76,12 @@ jobs:
           path: dist/VoiceInjector.exe
       - name: Delete old latest release
         if: steps.version.outputs.tag == 'latest'
-        uses: chip/action-delete-release@v1.3.1
-        with:
-          release: latest
+        run: gh release delete latest --yes --cleanup-tag
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
-      - name: Delete old latest tag
-        if: steps.version.outputs.tag == 'latest'
-        run: git push origin :refs/tags/latest
-        continue-on-error: true
+
+
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
