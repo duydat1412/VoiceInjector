@@ -90,16 +90,16 @@ jobs:
           body: |
             ## VoiceInjector ${{ steps.version.outputs.tag }}
 
-            **Download `VoiceInjector.exe`** và chạy trực tiếp trên Windows 10/11.
+            **Download `VoiceInjector.exe`** and run directly on Windows 10/11.
 
-            ### Yêu cầu
-            - Cài [VB-Cable](https://vb-audio.com/Cable/) để có virtual mic
+            ### Requirements
+            - Install [VB-Cable](https://vb-audio.com/Cable/) for virtual microphone
 
-            ### Sử dụng
-            1. Chọn Virtual Mic trong dropdown
-            2. Paste text tiếng Anh
-            3. Bấm Speak All
-            4. Web app speaking chọn microphone tương ứng
+            ### Usage
+            1. Select Virtual Mic in the dropdown
+            2. Paste English text
+            3. Click Speak All
+            4. In your web app, select the corresponding microphone input
           files: dist/VoiceInjector.exe
           prerelease: ${{ steps.version.outputs.tag == 'latest' }}
           make_latest: ${{ steps.version.outputs.tag != 'latest' }}
