@@ -1,8 +1,6 @@
-import pytest
 from unittest.mock import patch
 
 from src.utils.device_utils import (
-    list_output_devices,
     list_virtual_output_devices,
     get_device_by_name,
 )

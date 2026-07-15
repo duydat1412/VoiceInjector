@@ -1,11 +1,9 @@
-import queue
 import threading
 from typing import Optional, Callable
 
 import numpy as np
 import sounddevice as sd
 
-from src.utils.device_utils import list_output_devices
 from src.utils.logger import SpeechLogger
 
 logger = SpeechLogger()

@@ -1,13 +1,13 @@
 import asyncio
 from typing import Optional
 
-from PySide6.QtCore import QTimer, Signal, QObject, Qt
-from PySide6.QtGui import QFont, QIcon, QAction, QKeySequence, QShortcut
+from PySide6.QtCore import Signal, QObject, Qt
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
-    QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QTextEdit, QPushButton, QComboBox, QLabel, QSlider, QProgressBar,
-    QListWidget, QListWidgetItem, QMessageBox, QFileDialog, QMenu,
-    QStatusBar, QGroupBox, QCheckBox, QSpinBox, QDialog, QFormLayout,
+    QListWidget, QListWidgetItem, QMessageBox, QFileDialog,
+    QCheckBox, QSpinBox, QDialog, QFormLayout,
     QLineEdit, QDialogButtonBox, QFrame,
 )
 
@@ -160,7 +160,9 @@ class MainWindow(QMainWindow):
         # Engine selector
         engine_row = QHBoxLayout()
         self._engine_combo = QComboBox()
-        self._engine_combo.addItems(["Google Translate (Free)", "Google Cloud (High Quality)", "Offline (pyttsx3)"])
+        self._engine_combo.addItems([
+            "Google Translate (Free)", "Google Cloud (High Quality)", "Offline (pyttsx3)"
+        ])
         self._engine_combo.setCurrentIndex(0)
         engine_row.addWidget(QLabel("TTS Engine:"))
         engine_row.addWidget(self._engine_combo, 1)
@@ -219,7 +221,7 @@ class MainWindow(QMainWindow):
     def _setup_shortcuts(self):
         QShortcut(QKeySequence("Return"), self, self._on_speak).setContext(Qt.ApplicationShortcut)
         QShortcut(QKeySequence("Escape"), self, self._on_stop).setContext(Qt.ApplicationShortcut)
-        QShortcut(QKeySequence("Ctrl+Return"), self, self._on_speak_queue).setContext(Qt.ApplicationShortcut)
+        QShortcut(QKeySequence("Ctrl+Return"), self, self._on_speak).setContext(Qt.ApplicationShortcut)
 
     def _load_settings(self):
         cfg = self._config.config
@@ -295,7 +297,7 @@ class MainWindow(QMainWindow):
         if not text:
             self.statusBar().showMessage("No text to speak", 3000)
             return
-        lines = [l.strip() for l in text.split("\n") if l.strip()]
+        lines = [line.strip() for line in text.split("\n") if line.strip()]
         self._queue_manager.clear()
         self._queue_manager.add_items(lines)
         self._update_queue_display()
@@ -390,7 +392,6 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         self._audio_router.stop()
-        cfg = self._config.config
         geo = self.geometry()
         self._config.update(
             window_x=geo.x(), window_y=geo.y(),

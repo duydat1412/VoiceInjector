@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
-from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field
+from typing import Optional, Any
+from pydantic import BaseModel
 
 
 class AppConfig(BaseModel):

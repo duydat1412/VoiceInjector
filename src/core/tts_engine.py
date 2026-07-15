@@ -1,13 +1,11 @@
 import io
 import os
 import tempfile
-import wave
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Optional, List
+from typing import List
 
 import aiohttp
-import numpy as np
 import pyttsx3
 
 from src.utils.logger import SpeechLogger
@@ -85,9 +83,10 @@ class GoogleTranslateTTSEngine(BaseTTSEngine):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
             "Referer": "https://translate.google.com/",
         }
+        timeout = aiohttp.ClientTimeout(total=15)
         async with aiohttp.ClientSession() as session:
             async with session.get(GOOGLE_TRANSLATE_TTS_URL, params=params,
-                                   headers=headers, timeout=aiohttp.ClientTimeout(total=15)) as resp:
+                                   headers=headers, timeout=timeout) as resp:
                 if resp.status != 200:
                     raise RuntimeError(f"Google Translate TTS returned HTTP {resp.status}")
                 mp3_data = await resp.read()
@@ -129,7 +128,14 @@ class GoogleTranslateTTSEngine(BaseTTSEngine):
 class OfflineTTSEngine(BaseTTSEngine):
     def __init__(self):
         self._engine = pyttsx3.init()
-        self._voices = [v.name for v in self._engine.getProperty("voices") if "english" in v.name.lower() or "en" in v.languages[0].lower()[:2] if v.languages]
+        all_voices = self._engine.getProperty("voices")
+        self._voices = [
+            v.name for v in all_voices
+            if v.languages and (
+                "english" in v.name.lower()
+                or v.languages[0].lower().startswith("en")
+            )
+        ]
         if not self._voices:
             self._voices = ["default"]
 
@@ -189,7 +195,10 @@ class GoogleCloudTTSEngine(BaseTTSEngine):
                 self._client = texttospeech.TextToSpeechClient()
             return self._client
         except ImportError:
-            raise RuntimeError("google-cloud-texttospeech not installed. Run: pip install google-cloud-texttospeech")
+            raise RuntimeError(
+                "google-cloud-texttospeech not installed. "
+                "Run: pip install google-cloud-texttospeech"
+            )
 
     async def synthesize(self, text: str, voice: str = "en-US-Standard-A",
                          rate: float = 1.0, pitch: float = 0.0) -> TTSResult:
@@ -205,8 +214,6 @@ class GoogleCloudTTSEngine(BaseTTSEngine):
             },
         )
         return TTSResult(audio_data=response.audio_content, sample_rate=24000, format="wav")
-
-
 
 
 def create_tts_engine(engine_type: str = "google_translate",
