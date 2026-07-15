@@ -1,7 +1,7 @@
 import asyncio
 from typing import Optional
 
-from PySide6.QtCore import Signal, QObject, Qt
+from PySide6.QtCore import Signal, QObject, Qt, QThread
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QMainWindow,
@@ -668,6 +668,9 @@ class MainWindow(QMainWindow):
     def _on_stop(self):
         self._audio_router.stop()
         self._queue_manager.clear()
+        if self._worker_thread and self._worker_thread.isRunning():
+            self._worker_thread.quit()
+            self._worker_thread.wait(2000)
         self._update_queue_display()
         self._set_idle_state()
 
@@ -689,7 +692,17 @@ class MainWindow(QMainWindow):
         self._status_label.setProperty("active", True)
         self._status_label.style().unpolish(self._status_label)
         self._status_label.style().polish(self._status_label)
-        asyncio.ensure_future(self._process_queue())
+
+        worker = AsyncWorker(self._process_queue())
+        thread = QThread()
+        worker.moveToThread(thread)
+        thread.started.connect(worker.run)
+        worker.finished.connect(thread.quit)
+        worker.finished.connect(worker.deleteLater)
+        thread.finished.connect(thread.deleteLater)
+        worker.error.connect(lambda e: logger.error(f"Queue error: {e}"))
+        self._worker_thread = thread
+        thread.start()
 
     async def _process_queue(self):
         async def speak(text):
@@ -718,7 +731,7 @@ class MainWindow(QMainWindow):
                 return
 
         try:
-            self._audio_router.play_wav(wav_data, device_idx)
+            self._audio_router.play_wav_blocking(wav_data, device_idx)
             device_name = self._device_combo.currentText()
             logger.log_speech(text, voice, device_name, 0, self._tts_engine.name)
         except Exception as e:

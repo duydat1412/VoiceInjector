@@ -14,6 +14,7 @@ class AudioRouter:
         self._stream: Optional[sd.OutputStream] = None
         self._is_playing = False
         self._stop_flag = threading.Event()
+        self._done_event = threading.Event()
         self._on_finished: Optional[Callable] = None
         self._lock = threading.Lock()
 
@@ -31,6 +32,7 @@ class AudioRouter:
         with self._lock:
             self.stop()
             self._stop_flag.clear()
+            self._done_event.clear()
 
         with io.BytesIO(wav_data) as buf:
             with wave.open(buf, "rb") as wf:
@@ -80,8 +82,14 @@ class AudioRouter:
 
     def _on_playback_finished(self):
         self._is_playing = False
+        self._done_event.set()
         if self._on_finished:
             self._on_finished()
+
+    def play_wav_blocking(self, wav_data: bytes, device_index: Optional[int] = None):
+        """Play WAV data and block until playback finishes or is stopped."""
+        self.play_wav(wav_data, device_index)
+        self._done_event.wait()
 
     def stop(self):
         self._stop_flag.set()
