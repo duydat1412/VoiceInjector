@@ -590,9 +590,9 @@ class MainWindow(QMainWindow):
         credit_layout.setAlignment(Qt.AlignCenter)
         credit_layout.setContentsMargins(0, 8, 0, 0)
         credit_label = QLabel(
-            'Made with <span style="color:#f38ba8;">&hearts;</span> by '
+            'Made by '
             '<a href="https://github.com/duydat1412" '
-            'style="color:#cba6f7;text-decoration:none;">duydat1412</a>'
+            'style="color:#585b70;text-decoration:none;">duydat1412</a>'
         )
         credit_label.setTextFormat(Qt.RichText)
         credit_label.setOpenExternalLinks(True)
